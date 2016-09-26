@@ -1,1 +1,434 @@
-Hello World
+<!doctype html>
+<html>
+	<head>
+		<title>Calculator</title>
+		<meta charset="utf-8">
+		<style type="text/css">
+			html, body { height: 100%; }
+			* { margin: 0; padding: 0; }
+            .wrapper {
+                min-height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center
+            }
+			.calculator {
+			}
+			.row {
+				display: flex;
+				border-bottom: solid 1px #000000;
+			}
+			.row:first-of-type { border-top: solid 1px #000000; }
+			.display {
+				display: block;
+			    width: 100%;
+			    box-sizing: border-box;
+			    border: solid #000000;
+			    border-width: 0 1px;
+				font-size: 24px;
+				line-height: 1.5em;
+				height: 1.5em;
+				padding: 0 .5em;
+				text-align: right;
+			}
+			.button {
+				font-size: 24px;
+				width: 25%;
+			    box-sizing: border-box;
+			    text-align: center;
+			    border-right: solid 1px #000000;
+			    line-height: 1.5em;
+			    height: 1.5em;
+				padding: 0 .5em;
+				text-decoration: none;
+				color: rgba(0,0,0,0.5);
+				background-color: rgba(255,255,255,1);
+				transition: color 0.1s ease, background-color 0.1s ease;
+				position: relative;
+				overflow: hidden;
+			}
+			.button:hover, .button:focus {
+				color: rgba(0,0,0,1);
+				background-color: rgba(230,230,230,1)
+			}
+			.button:active { background-color: rgba(200,200,200,1); }
+			.button:first-of-type { border-left: solid 1px #000000; }
+			.button.exponent::after {
+				content: 'y';
+				font-size: .6em;
+				position: absolute;
+				top: -0.5em;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="wrapper">
+			<div class="calculator" id="calculator" tabindex="1">
+				<div class="row input">
+					<input class="display" id="display" type="text" disabled value="0" />
+				</div>
+				<div class="row">
+					<a href="#" class="button clear" id="clear" title="[ backspace ]" tabindex="20">c</a>
+					<a href="#" class="button all-clear" id="all-clear" title="[ escape ]" tabindex="21">ac</a>
+					<a href="#" class="button exponent" id="exponent" title="[ x ]" tabindex="18">x</a>
+					<a href="#" class="button sign" id="sign" title="[ i ]" tabindex="19">&plusmn;</a>
+				</div>
+				<div class="row">
+					<a href="#" class="button number seven" id="seven" title="[ 7 ]" data-val="7" tabindex="9">7</a>
+					<a href="#" class="button number eight" id="eight" title="[ 8 ]" data-val="8" tabindex="10">8</a>
+					<a href="#" class="button number nine" id="nine" title="[ 9 ]" data-val="9" tabindex="11">9</a>
+					<a href="#" class="button divide" id="divide" title="[ / ]" tabindex="16">&divide;</a>
+				</div>
+				<div class="row">
+					<a href="#" class="button number four" id="four" title="[ 4 ]" data-val="4" tabindex="6">4</a>
+					<a href="#" class="button number five" id="five" title="[ 5 ]" data-val="5" tabindex="7">5</a>
+					<a href="#" class="button number six" id="six" title="[ 6 ]" data-val="6" tabindex="8">6</a>
+					<a href="#" class="button multiply" id="multiply" title="[ * ]" tabindex="15">&times;</a>
+				</div>
+				<div class="row">
+					<a href="#" class="button number one" id="one" title="[ 1 ]" data-val="1" tabindex="3">1</a>
+					<a href="#" class="button number two" id="two" title="[ 2 ]" data-val="2" tabindex="4">2</a>
+					<a href="#" class="button number three" id="three" title="[ 3 ]" data-val="3" tabindex="5">3</a>
+					<a href="#" class="button subtract" id="subtract" title="[ - ]" tabindex="14">&minus;</a>
+				</div>
+				<div class="row">
+					<a href="#" class="button number zero" id="zero" title="[ 0 ]" data-val="0" tabindex="2">0</a>
+					<a href="#" class="button decimal" id="decimal" title="[ . ]" tabindex="12">.</a>
+					<a href="#" class="button equals" id="equals" title="[ space ] or [ = ]" tabindex="17">&equals;</a>
+					<a href="#" class="button add" id="add" title="[ + ]" tabindex="13">&plus;</a>
+				</div>
+			</div>
+		</div>
+		<script type="text/javascript">
+			var CalculatorFactory = function(id) {
+				var Calc = {
+					value: '',
+					maxLength: 16,
+					defaultValue: '0',
+					operationString: '',
+					states: {
+						'await': 0,
+						'input': 1,
+						'operate-await': 2,
+						'operate-input': 3
+					},
+					// binds events and sets default value.
+					init: function(id) {
+						this.calc = document.getElementById(id);
+						this.display = this.calc.querySelector('#display');
+						this.delegateButtons(this.calc);
+						this.bindKeyboard();
+						this.bindDisplayToValue(this.display);
+						this.updateValue(this.defaultValue);
+						this.state = this.states.await;
+					},
+					// binds button click events to calculator.
+					// passes individual buttons to handleButtonInput
+					delegateButtons: function(calc) {
+						calc.addEventListener('click', function(e) {
+							var target = e.target;
+							if (target.tagName.toLowerCase() === 'a' && target.classList.contains('button')) {
+								e.preventDefault();
+								this.handleButtonInput(target);
+							}
+						}.bind(this), false);
+					},
+					// binds keys to keyboard events.
+					bindKeyboard: function() {
+						this.calc.addEventListener('keyup', function(e) {
+							var id;
+
+							switch (true) {
+								case e.which ===  96 || e.which === 48: id = 'zero'; break;
+								case e.which ===  97 || e.which === 49: id = 'one'; break;
+								case e.which ===  98 || e.which === 50: id = 'two'; break;
+								case e.which ===  99 || e.which === 51: id = 'three'; break;
+								case e.which === 100 || e.which === 52: id = 'four'; break;
+								case e.which === 101 || e.which === 53: id = 'five'; break;
+								case e.which === 102 || e.which === 54: id = 'six'; break;
+								case e.which === 103 || e.which === 55: id = 'seven'; break;
+								case e.which === 104 || e.which === 56: id = 'eight'; break;
+								case e.which === 105 || e.which === 57: id = 'nine'; break;
+								// +
+								case e.which === 107 || (e.shiftKey && e.which === 187): id = 'add'; break;
+								// -
+								case e.which === 109 || e.which === 189: id = 'subtract'; break;
+								// *
+								case e.which === 106 || (e.shiftKey && e.which === 56): id = 'multiply'; break;
+								// /
+								case e.which === 111 || (!e.shiftKey && e.which === 191): id = 'divide'; break;
+								// x
+								case e.which === 88: id = 'exponent'; break;
+								// i
+								case e.which === 73: id = 'sign'; break;
+								// space or =
+								case e.which ===  32 || (e.shiftKey && e.which) === 187: id = 'equals'; break;
+								// backspace
+								case e.which ===  8: id = 'clear'; break;
+								// esc
+								case e.which === 27: id = 'all-clear'; break;
+								// .
+								case e.which === 110 || (!e.shiftKey && e.which === 190): id = 'decimal'; break;
+								default: break;
+							}
+							if (id)
+								document.getElementById(id).click();
+						}.bind(this), false)
+					},
+					// handles individual button clicks based on class.
+					handleButtonInput: function(button) {
+						if (button.classList.contains('number'))
+							this.handleNumberButton(button);
+						if (button.classList.contains('decimal'))
+							this.handleDecimalInput();
+						if (button.classList.contains('clear'))
+							this.handleClearButton();
+						if (button.classList.contains('all-clear'))
+							this.handleAllClearButton();
+						if (button.classList.contains('add'))
+							this.handleOperatorButton('+');
+						if (button.classList.contains('subtract'))
+							this.handleOperatorButton('-');
+						if (button.classList.contains('multiply'))
+							this.handleOperatorButton('*');
+						if (button.classList.contains('divide'))
+							this.handleOperatorButton('/');
+						if (button.classList.contains('exponent'))
+							this.handleOperatorButton('^');
+						if (button.classList.contains('equals'))
+							this.handleEqualsButton();
+						if (button.classList.contains('sign'))
+							this.handleSignButton();
+					},
+					// handles the decimal button. only one is allowed.
+					handleDecimalInput: function() {
+							switch (this.state) {
+								case this.states['await']:
+									this.updateValue('0.');
+									this.state = this.states['input'];
+									break;
+								case this.states['input']:
+									if (this.value.indexOf('.') === -1)
+										this.updateValue(this.value + '.');
+									break;
+								case this.states['operate-await']:
+									this.updateValue('0.');
+									this.state = this.states['operate-input'];
+									break;
+								case this.states['operate-input']:
+									if (this.value.indexOf('.') === -1)
+										this.updateValue(this.value + '.');
+									break;
+								default:
+									break;
+							}
+					},
+					// handles number buttons. strips 0 if display is at default.
+					handleNumberButton: function(button) {
+						var value = button.dataset.val;
+						switch (this.state) {
+							case this.states['await']:
+								this.updateValue(value);
+								this.state = this.states['input'];
+								break;
+							case this.states['input']:
+								this.updateValue(this.display.value == '0' ? value : this.display.value + value);
+								break;
+							case this.states['operate-await']:
+								this.updateValue(value);
+								this.state = this.states['operate-input'];
+								break;
+							case this.states['operate-input']:
+								this.updateValue(this.display.value == '0' ? value : this.display.value + value);
+								break;
+							default:
+								break;
+						}
+					},
+					// handles the screen clear button.
+					// only clears the screen if an operation has begun.
+					// resets to default if only data has been entered.
+					handleClearButton: function() {
+						switch (this.state) {
+							case this.states['await']:
+								this.updateValue(this.defaultValue);
+								break;
+							case this.states['input']:
+								this.updateValue(this.defaultValue);
+								this.state = this.states['await'];
+								break;
+							case this.states['operate-await']:
+								this.updateValue(this.defaultValue);
+								this.resetDisplay();
+								break;
+							case this.states['operate-input']:
+								this.resetDisplay();
+								this.updateValue(this.defaultValue);
+								this.state = this.states['operate-await'];
+								break;
+							default:
+								break;
+						}
+					},
+					// clears everything, display, value and operationString.
+					handleAllClearButton: function() {
+						this.updateValue(this.defaultValue);
+						this.resetOperationString();
+					},
+					// handles operators +, -, *, / and exponent
+					handleOperatorButton: function(operator) {
+						switch (this.state) {
+							case this.states['await']:
+								this.operationString = this.value + operator;
+								this.state = this.states['operate-await'];
+								break;
+							case this.states['input']:
+								this.operationString = this.value + operator;
+								this.state = this.states['operate-await'];
+								break;
+							case this.states['operate-await']:
+								break;
+							case this.states['operate-input']:
+								this.operationString += this.value;
+								this.operationString = this.runOperation() + operator;
+								this.state = this.states['operate-await'];
+								break;
+							default:
+								break;
+						}
+					},
+					handleExponentButton: function(button) {
+						switch (this.state) {
+							case this.states['await']:
+								break;
+							case this.states['input']:
+								break;
+							case this.states['operate-await']:
+								this.operationString += this.value;
+								this.runOperation();
+								this.state = this.states['await'];
+								break;
+							case this.states['operate-input']:
+								this.operationString += this.value;
+								this.runOperation();
+								this.state = this.states['await'];
+								break;
+							default:
+								break;
+						}
+					},
+					// handles the = button. runs eval on the operation string if it's been set
+					// otherwise does nothing.
+					handleEqualsButton: function() {
+						switch (this.state) {
+							case this.states['await']:
+								break;
+							case this.states['input']:
+								break;
+							case this.states['operate-await']:
+								this.operationString += this.value;
+								this.runOperation();
+								this.state = this.states['await'];
+								break;
+							case this.states['operate-input']:
+								this.operationString += this.value;
+								this.runOperation();
+								this.state = this.states['await'];
+								break;
+							default:
+								break;
+						}
+					},
+					// flips the sign of the current input
+					handleSignButton: function() {
+						if (parseFloat(this.value, 10) > 0)
+							this.updateValue('-' + this.value);
+						else if (parseFloat(this.value, 10) < 0)
+							this.updateValue(this.value.substring(1));
+					},
+					// runs the current operationString w/ eval.
+					runOperation: function() {
+						var value = eval(this.parseOperationString(this.operationString));
+						this.updateValue(String(value));
+						return value;
+					},
+					// creates the string that will be evalled to get our results.
+					parseOperationString: function(operationString) {
+						var tokens = this.tokenizeOperationString(operationString),
+							parsedString;
+
+						// special case for exponentiation to better handle floating points.
+						if (tokens.operator === '^') {
+							//third method here
+							// http://www.saintsatplay.com/blog/2014/08/handling-floating-point-numbers-in-javascript
+							parsedString = 'Math.round(parseFloat((Math.pow('+ tokens.left + ',' + tokens.right + ') * Math.pow(10, 10)).toFixed(10))) / Math.pow(10, 10)';
+						} else {
+							parsedString = tokens.left + tokens.operator + tokens.right;
+						}
+
+						// if a divisor has been returned with the tokens, add code to use it.
+						return tokens.divisor ? '(' + parsedString + ') / ' + tokens.divisor : parsedString;
+					},
+					// tokenizes the operation string to account for arithmetic, exponentiation and floats.
+					tokenizeOperationString(operationString) {
+						var tokens = this.operationString.match(/^([-+]?[0-9]*\.?[0-9]+)([\+\^*\/-])([-+]?[0-9]*\.?[0-9]+)$/),
+							left = tokens[1],
+							right = tokens[3],
+							operator = tokens[2];
+
+						if (operator !== '^' && (left.indexOf('.') > -1 || right.indexOf('.') > -1))
+							return this.accountForFloats(left, right, operator);
+
+						return { left: left, right: right, operator: operator };
+					},
+					// handles JavaSript's floating point issues multiplying both
+					// sides of the operation by however many powers of 10 are necessary to
+					// get the rightmost digit to the right of the decimal.
+					// adds the multiplier as a divisor to the return values
+					accountForFloats: function(left, right, operator) {
+						var leftDec = left - left.indexOf('.'),
+							rightDec = right.length - right.indexOf('.'),
+							multiplier = Math.pow(10, Math.max(leftDec, rightDec) - 1);
+						left *= multiplier;
+						right *= multiplier;
+						return { left: left, right: right, operator: operator, divisor: multiplier }
+					},
+					// updates this.value and dispatches an even so that this.display will be updated.
+					updateValue: function(value) {
+						this.value = value;
+						this.display.dispatchEvent(new Event('value-updated'));
+					},
+					// resets this.display.value but not this.value.
+					// used when clearing entered data but not operations that have already begun.
+					resetDisplay: function() {
+						this.display.value = this.defaultValue;
+					},
+					// sets the operationString to '' so new operations can start to fill it.
+					resetOperationString: function() {
+						this.operationString = '';
+					},
+					// adds a listener to this.display to trigger Calc's handleEvent method.
+					bindDisplayToValue: function(display) {
+						display.addEventListener('value-updated', this, false);
+					},
+					// handles events sent to Calc. Right now it's used only to
+					// update the display.
+					handleEvent: function(e) {
+						switch (e.type) {
+							case 'value-updated':
+								this.display.value = this.value;
+								break;
+							default:
+								break;
+						}
+					}
+				};
+				Calc.init(id);
+				return Calc;
+			};
+
+			var Calculator = CalculatorFactory('calculator');
+		</script>
+	</body>
+</html>
