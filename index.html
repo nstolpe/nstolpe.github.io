@@ -392,7 +392,7 @@
 							multiplier = Math.pow(10, Math.max(leftDec, rightDec) - 1);
 						left *= multiplier;
 						right *= multiplier;
-						return { left: left, right: right, operator: operator, divisor: multiplier }
+						return { left: left, right: right, operator: operator, divisor: Math.pow(multiplier, 2) }
 					},
 					// updates this.value and dispatches an even so that this.display will be updated.
 					updateValue: function(value) {
