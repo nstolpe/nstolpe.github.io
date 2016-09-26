@@ -48,7 +48,7 @@
 				position: relative;
 				overflow: hidden;
 			}
-			.button:hover, .button:focus {
+			.button:hover/*, .button:focus*/ {
 				color: rgba(0,0,0,1);
 				background-color: rgba(230,230,230,1)
 			}
@@ -387,7 +387,7 @@
 					// get the rightmost digit to the right of the decimal.
 					// adds the multiplier as a divisor to the return values
 					accountForFloats: function(left, right, operator) {
-						var leftDec = left - left.indexOf('.'),
+						var leftDec = left.length - left.indexOf('.'),
 							rightDec = right.length - right.indexOf('.'),
 							multiplier = Math.pow(10, Math.max(leftDec, rightDec) - 1);
 						left *= multiplier;
